@@ -467,4 +467,34 @@ function CheckCondition(flags: u32, c: ConditionCode) is bool:
             return 0;
 ```
 
+### I/O Transfers
+
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
+|          | `0--7` | `8---------------------31` |
+| `IN`     | `0x14` | `sssssppppppppwwwww000000` |
+| `OUT`    | `0x15` | `dddddppppppppwwwww000000` |
+
+Payload Bits Legend:
+* s: Source Transfer Register
+* d: Destination Transfer Register
+* w: Transfer Bit Width
+* p: Port Number
+
+Timing: 7 + Port Delay
+
+Behaviour:
+```
+instruction IN(s: u5, p: u8, w: u5):
+    let val = RotateRight(ReadBitsFromPort(p,w),w);
+    let regval = ReadRegister(2,s) >> w;
+    WriteRegister(2,s, val | regval);
+
+instruction OUT(s: u5, p: u8, w: u5):
+    let regval = ReadRegister(2,s);
+    let val = regval & ((1 <<w)-1);
+    WriteRegister(2, s, regval >> w);
+    WriteBitsToPort(val, p, w);
+```
+
 !{#copyright}
