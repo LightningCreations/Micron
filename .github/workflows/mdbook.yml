@@ -45,7 +45,7 @@ jobs:
         uses: actions/configure-pages@v4
       - name: Build with mdBook
         env: 
-            MDBOOK_output__html__site_url: "/" # Set the base URL of the site
+            MDBOOK_output__html__site_url: "/Micron" # Set the base URL of the site
             # Other variables can be set here, including epub output identifiers
         run: mdbook build
       - name: Upload artifact
