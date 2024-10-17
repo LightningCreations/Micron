@@ -368,5 +368,103 @@ instruction SHR(a: u5, b: u5, d: u5, c: bool, o: ShiftFill, w: bool):
         SetFlagsRegisterByMask(flags_mask, 0xB);
 ```
 
+### Branches
+
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
+|          | `0--7` | `8---------------------31` |
+| `JMP`    | `0x10` | `cccclllllooooooooooooooo` |
+| `JMPR`   | `0x11` | `cccclllllrrrrr0000000000` |
+
+Payload Bits Legend:
+* `c`: Condition Code
+* `l`: Link Register
+* `o`: Destination Offset
+* `r`: Destination Register
+
+Timing: `2+t+l+r` where:
+* `t` is `1` if the branch is taken and `0` if it is not taken
+* `l` is `1` if Link Register is non-zero and the branch is taken, and `0` otherwise
+* `r` is `1` for `JMPR` and `0` for `JMP`
+
+Behaviour:
+```
+instruction JMP(c: ConditionCode, l: u5, o: u15):
+    let disp = SignExtend(o) << 2;
+    let curr_ip = IP;
+    if CheckCondition(flags, c):
+        if l != 0:
+            WriteRegister(0,l, curr_ip);
+        IP = curr_ip + disp;
+
+instruction JMPR(c: ConditionCode, l: u5, r: u5):
+    let addr = ReadRegister(0,r);
+    if addr & 3 != 0:
+        Raise(EX[3]);
+    let curr_ip = IP;
+    if CheckCondition(flags, c):
+        if l != 0:
+            WriteRegister(0,l, curr_ip);
+        IP = addr;
+```
+
+#### Condition Code
+
+`JMP`, `JMPR`, and `MOV` all use a 4-bit condition code to encode the branch condition. This includes conditions for "Always" and "Never". 
+
+```
+enum ConditionCode is u4:
+    Never = 0,
+    Carry = 1,
+    Zero = 2,
+    Overflow = 3,
+    CarryOrEqual = 4,
+    SignedLess = 5,
+    SignedLessOrEq = 6,
+    Negative = 7,
+    Positive = 8,
+    SignedGreater = 9,
+    SignedGreaterOrEq = 10,
+    Above = 11,
+    NotOverflow = 12,
+    NotZero = 13,
+    NotCarry = 14,
+    Always = 15
+
+function CheckCondition(flags: u32, c: ConditionCode) is bool:
+    switch (c):
+        case Never:
+            return false;
+        case Carry:
+            return (flags & 0x80) != 0;
+        case Zero:
+            return (flags & 0x01) != 0;
+        case Overflow:
+            return (flags & 0x40) != 0;
+        case CarryOrEqual:
+            return (flags & 0x81) != 0;
+        case SignedLess:
+            return (((flags & 0x40) != 0) == ((flags & 0x02) != 0)) and (flags & 0x01) == 0;
+        case SignedLessOrEq:
+            return (((flags & 0x40) != 0) == ((flags & 0x02) != 0)) or (flags & 0x01) != 0;
+        case Negative:
+            return (flags & 0x02) != 0;
+        case Positive:
+            return (flags & 0x02) == 0;
+        case SignedGreater:
+            return not ((((flags & 0x40) != 0) == ((flags & 0x02) != 0)) or (flags & 0x01) != 0);
+        case SignedGreaterOrEq:
+            return not ((((flags & 0x40) != 0) == ((flags & 0x02) != 0)) and (flags & 0x01) == 0);
+        case Above:
+            return (flags & 0x81) == 0;
+        case NotOverflow:
+            return (flags & 0x40) == 0;
+        case NotZero:
+            return (flags & 0x01) == 0;
+        case NotCarry:
+            return (flags & 0x80) == 0;
+        case Always:
+            return 0;
+```
 
 !{#copyright}
