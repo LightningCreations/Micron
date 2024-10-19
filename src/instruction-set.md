@@ -78,7 +78,8 @@ Format:
 | Bits | Name                 | Description                                                             |
 | ---- | -------------------- | ----------------------------------------------------------------------- |
 | `P`  | Co-processor Present | Each bit Set to 1 by the Processor if present, 0 otherwise. Must not be modified |
-| `E`   | Co-processor Enabled | If the corresponding bit in `P` is set, |
+| `E`  | Co-processor Enabled | If the corresponding bit in `P` is set, can be set to `1` to allow use of the specified co-processor|
+| `a`  | Co-processor 0 control| C
 
 
 ### Map 2: I/O Transfer Registers
@@ -91,7 +92,7 @@ The Information Registers Map is a Read Only Map that contains information about
 
 ### Map 4-7: Co-processor Maps
 
-Co-processors connected to the system may expose up to 32 registers each. 
+Co-processors connected to the system may expose up to 32 registers each. Registers in map `N` are only defined if the given co-processor is enabled.
 
 ## Instructions
 
@@ -495,6 +496,102 @@ instruction OUT(s: u5, p: u8, w: u5):
     let val = regval & ((1 <<w)-1);
     WriteRegister(2, s, regval >> w);
     WriteBitsToPort(val, p, w);
+```
+
+### Invoke Coprocessor Unit
+
+| Mnemonic | Opcode   | Payload                    |
+| -------- | -------- | -------------------------- |
+|          | `0--7`   | `8---------------------31` |
+| `CPIx`   | `0x20`+x | `ffffpppppppppppppppppppp` |
+| `CPIxEF` | `0x24`+x | `ffffffpppppppppppppppppp` |
+| `NCPIx`  | `0x28`+x | `ffffpppppppppppppppppppp` |
+| `NCPIxEF`| `0x2C`+x | `ffffffpppppppppppppppppp` |
+
+(`x` is a value from `0` to `3`, representing the co-processor number to invoke, for example, `CPI0` has opcode 0x18 and `CPI3` has opcode 0x1B)
+
+Timing: 2 + N where:
+* For `CPIx` and `CPIxEF`, `N` is the delay in cycles before the co-processor becomes ready to execute again
+* For `NCPIx` and `NCPIxEF`, `N` is 0. 
+
+Payload Bits Legend:
+* `f`: Co-processor function
+* `p`: Co-processor instruction payload
+
+Behaviour:
+```
+instruction {CPI0, CPI1, CPI2, CPI3}(f: u4, p: u20):
+    let coproc: u4;
+    switch (instruction):
+        case CPI0:
+            coproc = 0;
+        case CPI1:
+            coproc = 1;
+        case CPI2:
+            coproc = 2;
+        case CPI3:
+            coproc = 3;
+    if not IsCoprocessorEnabled(coproc):
+        Raise(EX[3]);
+    
+    ExecuteCoprocessorInstruction(coproc, f, p);
+    WaitOnCoprocessor(coproc);
+    if PullCoprocessorException(coproc):
+        Raise(Ex[4+coproc]);
+
+instruction {CPI0EF, CPI1EF, CPI2EF, CPI3EF}(f: u6, p: u18):
+    let coproc: u4;
+    switch (instruction):
+        case CPI0EF:
+            coproc = 0;
+        case CPI1EF:
+            coproc = 1;
+        case CPI2EF:
+            coproc = 2;
+        case CPI3EF:
+            coproc = 3;
+    if not IsCoprocessorEnabled(coproc):
+        Raise(EX[3]);
+    
+    ExecuteCoprocessorInstruction(coproc, f, p);
+    WaitOnCoprocessor(coproc);
+    if PullCoprocessorException(coproc):
+        Raise(Ex[4+coproc]);
+
+instruction {NCPI0, NCPI1, NCPI2, NCPI3}(f: u4, p: u20):
+    let coproc: u4;
+    switch (instruction):
+        case NCPI0:
+            coproc = 0;
+        case NCPI1:
+            coproc = 1;
+        case NCPI2:
+            coproc = 2;
+        case NCPI3:
+            coproc = 3;
+    if not IsCoprocessorEnabled(coproc):
+        Raise(EX[3]);
+    
+    ExecuteCoprocessorInstruction(coproc, f, p);
+    WaitOnCoprocessor(coproc);
+    if PullCoprocessorException(coproc):
+        Raise(Ex[4+coproc]);
+
+instruction {NCPI0EF, NCPI1EF, NCPI2EF, NCPI3EF}(f: u6, p: u18):
+    let coproc: u4;
+    switch (instruction):
+        case NCPI0EF:
+            coproc = 0;
+        case NCPI1EF:
+            coproc = 1;
+        case NCPI2EF:
+            coproc = 2;
+        case NCPI3EF:
+            coproc = 3;
+    if not IsCoprocessorEnabled(coproc):
+        Raise(EX[3]);
+    
+    ExecuteCoprocessorInstruction(coproc, f, p);
 ```
 
 !{#copyright}
