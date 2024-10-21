@@ -40,6 +40,7 @@ jobs:
           rustup update
           cargo install --vers "^${MDBOOK_VERSION}" --no-default-features --features search mdbook
           cargo install --git https://github.com/chorman0773/mdbook-fiction-tools
+          cargo install mdbook-spec
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4

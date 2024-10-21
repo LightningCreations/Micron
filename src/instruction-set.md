@@ -46,16 +46,18 @@ Refer to the following table of defined registers. System Configuration Register
 
 
 
-| Regno. | Aliases | Description    |
-| ------ | ------- | -------------- |
-| 0      | `sctrl` | System Control |
-| 1      | `copctl`| Co-processor Control |
+| Regno. | Aliases  | Description    |
+| ------ | -------- | -------------- |
+| 0      | `sysctl` | System Control |
+| 1      | `copctl` | Co-processor Control |
+| 2      | `inttab` | Interrupt Table Pointer |
+| 31     | `intret` | Interrupt Procedure return register |
 
 #### System Control (Map 1, Register 0)
 
 Format:
 ```
-+0-----------------------------32+
++0-----------------------------31+
 |i000000000000000000000000000000t|
 +--------------------------------+
 ```
@@ -66,21 +68,75 @@ Format:
 | Bits | Name     | Description |
 | ---- | -------- | --- |
 | `i`  | Interrupt Enable (IE)     | Only process IRQs when set to 1. |
+| `t`  | Trap     | Set to 1 by the processor when an Exception occurs. IRQs and Unit Error interrupts are not processed while this bit is set. Only cleared manually. |
 
-#### Co-processor Control
+#### Co-processor Control (Map 1, Register 1)
 
 Format:
 ```
-+0-----------------------------32+
++0-----------------------------31+
 |PPPPEEEEaaaaaabbbbbbccccccdddddd|
 +--------------------------------+
 ```
+
 | Bits | Name                 | Description                                                             |
 | ---- | -------------------- | ----------------------------------------------------------------------- |
 | `P`  | Co-processor Present | Each bit Set to 1 by the Processor if present, 0 otherwise. Must not be modified |
 | `E`  | Co-processor Enabled | If the corresponding bit in `P` is set, can be set to `1` to allow use of the specified co-processor|
-| `a`  | Co-processor 0 control| C
+| `a`  | Co-processor 0 control| Control bits for co-processor 0, defined by the co-processor |
+| `b`  | Co-processor 1 control| Control bits for co-processor 1, defined by the co-processor |
+| `c`  | Co-processor 2 control| Control bits for co-processor 2, defined by the co-processor |
+| `d`  | Co-processor 3 control| Control bits for co-processor 3, defined by the co-processor |
 
+#### Interrupt/Exception Table (Map 1, Register 2)
+
+Format:
+```
++0-----------------------------32+
+|000aaaaaaaaaaaaaaaaaaaaaaaaaaaaa|
++--------------------------------+
+```
+
+(All bits indicated as 0 must be written with 0)
+
+Bits `a` contain the 29 most significant bits of an 8-byte aligned address which points to the interrupt table. 512 bytes starting from this address refer to 64 8-byte entries of the interrupt table, which use the following format, in LSB-first order using little-endian byte encoding:
+```
++0-----------------------------31+
+|p0tttttttttttttttttttttttttttttt|
++32----------------------------63+
+|00000000000000000000000000000000|
++--------------------------------+
+```
+
+The `t` bits are the 30 most significant bits of the address to transfer control to when the specified interrupt occurs.
+
+The `p` bit must be set for all interrupt vectors that are present and valid to execute.
+
+##### Interrupts
+
+The first 16 interrupt entries are reserved for hardware exceptions, these interrupts are allocated as follows (and the `n`th entry in this list is designated elsewise as `EX[n]`):
+* Entry `0`: Exception Handling Fault - raising an exception causes an exception, including:
+    * A Bus Fault Reading the interrupt table or the appropriate vector
+    * An invalid format of an exception vector
+    * A not-present exception vector
+* Entry `1`: Bus Fault - accessing memory in a particular manner causes an error, or attempts to access memory that doesn't exist.
+* Entry `2`: Invalid Instruction - An instruction that is executed is an unknown opcode, reserved, malformed, or invalid
+* Entry `3`: Unaligned Branch Target - an indirect branch is unaligned.
+* Entries `4`-`7`: Co-processor Unit `n` Error - The corresponding Coprocessor unit `n` signals an error after a `CPIn` instruction (`n` is Exception number - 4).
+* Entry `15`: Non-maskable Interrupt - May be raised in response to a priority signal external to the processor that requires immediate resolution. This is handled like an IRQ, but does not obey the `i` flag. 
+* Entries `8`-`14` are reserved for future use and are not raised by the current Instruction Set Version.
+
+The remaining entries (16-63), may be allocated as IRQ vectors.
+
+Exceptions are raised regardless of the `i` bit. The `t` bit is set to `1` when an exception is raised. It is not modified by any other interrupt (including an NMI) being raised.
+
+In an exception occurs raising `EX[0]`, the processor RESETs. 
+
+#### Interrupt Return Pointer (Map 1, Register 31)
+
+When an interrupt occurs, this register is set to the value of the instruction pointer of the next instruction to execute - in the case of an IRQ or NMI, this is immediately after the last instruction to execute (or the jump target, if that instruction was a taken branch). In the case of an exception, this is the instruction that raised the exception.
+
+In the case of `EX[0]`, the value of this register is undefined. 
 
 ### Map 2: I/O Transfer Registers
 
@@ -496,6 +552,31 @@ instruction OUT(s: u5, p: u8, w: u5):
     let val = regval & ((1 <<w)-1);
     WriteRegister(2, s, regval >> w);
     WriteBitsToPort(val, p, w);
+```
+
+### Flags Manipulation
+
+| Mnemonic | Opcode   | Payload                    |
+| -------- | -------- | -------------------------- |
+|          | `0--7`   | `8---------------------31` |
+| `LDFLAGS`| `0x18`   | `ddddd0000000000000000000` |
+| `STFLAGS`| `0x19`   | `sssss0000000000000000000` |
+
+Payload Bits Legend:
+* s: Source Register
+* d: Destination Register
+
+Timing: 1
+
+Behaviour:
+```
+instruction LDFL(d: u5):
+    let val = flags;
+    WriteRegister(0,d, val);
+
+instruction STFL(s: u5)
+    let val = ReadRegister(0, s);
+    flags = val & 0xF;
 ```
 
 ### Invoke Coprocessor Unit
