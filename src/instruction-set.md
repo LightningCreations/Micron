@@ -571,7 +571,10 @@ Payload Bits Legend:
 
 Timing: 7 + Port Delay
 
-Behaviour:
+Behaviour: Shift `w` bits in an io transfer register in or out to an I/O Port
+* `IN` : Shifts bits into the high bits of the transfer register
+* `OUT`: Shifts bits out of the low bits of the transfer register
+
 ```
 instruction IN(s: u5, p: u8, w: u5):
     let val = RotateRight(ReadBitsFromPort(p,w),w);
@@ -601,6 +604,20 @@ Payload Bits Legend:
 Timing: 1
 
 Behaviour:
+* `LDFLAGS` loads the flags bits into the lower 4 bits of `d` (zero extended)
+* `STFLAGS` stores the lower 4 bits of `s` into the flags bits
+
+The Flags Bits are:
+
+| `0--3` |
+|--------|
+| `cvnz` |
+
+* `c`: Carry
+* `v`: Signed Overflow
+* `n`: Negative
+* `z`: Zero
+
 ```
 instruction LDFL(d: u5):
     let val = flags;
@@ -631,7 +648,12 @@ Payload Bits Legend:
 * `f`: Co-processor function
 * `p`: Co-processor instruction payload
 
-Behaviour:
+Behaviour: Executes the specified Coprocessor function with the specified payload
+* `CPIx`/`CPIxEF`: Waits for the Co-processor to finish all operations, and raises the appropriate unit error if the Coprocessor reports it,
+* `NCPIx`/`NCPIxEF`: Finishes immediately.
+* `CPIx`/`NCPIx`: Allows specifying up to 16 functions with a 20-bit payload
+* `CPIxEF`/`NCPIxEF`: Allows specifying up to 64 functions with a 18-bit payload (bottom 18-bits of the 20-bit payload)
+
 ```
 instruction {CPI0, CPI1, CPI2, CPI3}(f: u4, p: u20):
     let coproc: u4;
@@ -715,6 +737,10 @@ instruction {NCPI0EF, NCPI1EF, NCPI2EF, NCPI3EF}(f: u6, p: u18):
 Timing: 
 * `HALT`: 1
 * `STOP`: N/A
+
+Behaviour: Places the CPU in a low-power state and stops executing
+* `HALT`: Execution resumes after an NMI, IRQ (if enabled), Unit Error (if `sysctl.t=0`), or RESET.
+* `STOP`: Execution resumes after a RESET only. No other interrupts are serviced.
 
 ```
 instruction HALT() {
