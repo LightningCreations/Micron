@@ -165,13 +165,13 @@ Co-processors connected to the system may expose up to 32 registers each. Regist
 Timing (Execute Latency): 0 cycles
 
 Exception Order:
-* `EX[1]` (decode): Unconditionally
+* `EX[2]` (decode): Unconditionally
 
-Behaviour: 
+Behaviour: Unconditionally raises Invalid Instruction errors
 
 ```
 instruction UND():
-    Raise(EX[1])
+    Raise(EX[2])
 ```
 
 ### Pause
@@ -185,6 +185,7 @@ instruction UND():
 Timing (Execute Latency): 0 cycles + k
 
 Behaviour: Delays execution for `k` cycles, 0-63
+
 
 ```
 instruction PAUSE(k: u6):
@@ -210,7 +211,8 @@ Timing (Execute Latency): `1+c+t`, where:
 * `c` is 0 if Condition Code is 0, 1 if Condition Code is 15 or Latency Control is 0 and the Condition Check Fails, 2 if Latency Control is 1 or the Condition Code is not 15 and the Condition Check Succeeds
 * `t` is 0 if Map is 0 or Latency Control is 0 and the Condition Check Fails, 2 if Map is not 0 when Latency Control is 1 or the Condition Check Succeeds.
 
-Behaviour:
+Behaviour: Copies data between general purpose registers and to/from general purpose registers into other registers.
+
 ```
 instruction MOV(d: u5, s: u5, m: u2, dir: u1, c: ConditionCode, l: bool):
     if m!=0:
@@ -246,8 +248,8 @@ instruction MOV(d: u5, s: u5, m: u2, dir: u1, c: ConditionCode, l: bool):
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------32` |
-| `ST`     | `0x03` | `sssssdddddww00000000000p` |
-| `LD`     | `0x04` | `sssssdddddww00000000000p` |
+| `ST`     | `0x03` | `dddddsssssww00000000000p` |
+| `LD`     | `0x04` | `dddddsssssww00000000000p` |
 | `LDI`    | `0x05` | `dddddh00iiiiiiiiiiiiiiii` |
 | `LRA`    | `0x06` | `ddddd000iiiiiiiiiiiiiiii` |
 
@@ -258,6 +260,7 @@ Payload Bits Legend:
 * `w`: Width
 * `i`: Immediate Value
 * `o`: Offset
+* `h`: Hi/lo bits
 * `q`: Scale Quantity
 * `p`: Push/Pop
 
@@ -277,7 +280,6 @@ instruction ST(s: u5, d: u5, w: u2, p: bool):
     if p:
         addr = ReadRegister(0,d) - width;
         WriteRegister(0,d, addr);
-    else:
 
     WriteAlignedMemoryTruncate(addr, val, width);
     
@@ -300,6 +302,22 @@ instruction LRA(d: u5, i: u15):
     let val = SignExtend(i) + IP;
     WriteRegister(0,d,val);
 ```
+
+### Immediate Arithmetic
+
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
+|          | `0--7` | `8---------------------31` |
+| `INC`    | `0x08` | `dddddsc00000iiiiiiiiiiii` |
+
+Timing: 2
+Payload Bits Legend:
+* `d`: Destination Register
+* `s`: Extend Sign
+* `c`: Surpress Flags Modification
+* `i`: Immediate
+
+Behaviour: Adds a 12-bit zero or sign-extended immediate to `d`.
 
 ### ALU Instructions
 
@@ -374,7 +392,7 @@ instruction SHL(a: u5, b: u5, d: u5, c: bool, o: ShiftFill, w: bool):
         
     let res: u32;
     let flags: u4;
-    if w:
+    if w or shift < 32:
         switch (o):
             case Zero | Arith:
                 res, flags = src << (shift & 0x31);
@@ -436,7 +454,7 @@ instruction SHR(a: u5, b: u5, d: u5, c: bool, o: ShiftFill, w: bool):
 Payload Bits Legend:
 * `c`: Condition Code
 * `l`: Link Register
-* `o`: Destination Offset
+* `o`: Destination Offset (Bits 2..17)
 * `r`: Destination Register
 
 Timing: `2+t+l+r` where:
@@ -521,16 +539,34 @@ function CheckCondition(flags: u32, c: ConditionCode) is bool:
         case NotCarry:
             return (flags & 0x80) == 0;
         case Always:
-            return 0;
+            return true;
 ```
+
+### Multiply/Divide
+
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
+|          | `0--7` | `8---------------------31` |
+| `MUL`    | `0x12` | `hhhhhlllllaaaaabbbbbs0ww` |
+| `DIV`    | `0x13` | `qqqqqrrrrraaaaabbbbbs0ww` |
+
+Payload Bits Legend:
+* h: High Multiply Result
+* l: Low Multiply Result
+* q: Division Quotient
+* r: Division Remainder
+* a: First operand
+* b: Second operand
+* s: Signed/Unsigned 
+* w: Width
 
 ### I/O Transfers
 
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
-| `IN`     | `0x14` | `sssssppppppppwwwww000000` |
-| `OUT`    | `0x15` | `dddddppppppppwwwww000000` |
+| `IN`     | `0x14` | `ddddd000000ppppppppwwwww` |
+| `OUT`    | `0x15` | `sssss000000ppppppppwwwww` |
 
 Payload Bits Legend:
 * s: Source Transfer Register
@@ -561,6 +597,7 @@ instruction OUT(s: u5, p: u8, w: u5):
 |          | `0--7`   | `8---------------------31` |
 | `LDFLAGS`| `0x18`   | `ddddd0000000000000000000` |
 | `STFLAGS`| `0x19`   | `sssss0000000000000000000` |
+
 
 Payload Bits Legend:
 * s: Source Register
@@ -654,9 +691,6 @@ instruction {NCPI0, NCPI1, NCPI2, NCPI3}(f: u4, p: u20):
         Raise(EX[3]);
     
     ExecuteCoprocessorInstruction(coproc, f, p);
-    WaitOnCoprocessor(coproc);
-    if PullCoprocessorException(coproc):
-        Raise(Ex[4+coproc]);
 
 instruction {NCPI0EF, NCPI1EF, NCPI2EF, NCPI3EF}(f: u6, p: u18):
     let coproc: u4;
@@ -674,5 +708,43 @@ instruction {NCPI0EF, NCPI1EF, NCPI2EF, NCPI3EF}(f: u6, p: u18):
     
     ExecuteCoprocessorInstruction(coproc, f, p);
 ```
+
+### Halt/Stop CPU
+
+| Mnemonic | Opcode   | Payload                    |
+| -------- | -------- | -------------------------- |
+|          | `0--7`   | `8---------------------31` |
+| `HALT`   | `0x30`   | `000000000000000000000000` |
+| `STOP`   | `0x31`   | `000000000000000000000000` |
+
+Timing: 
+* `HALT`: 1
+* `STOP`: N/A
+
+```
+instruction HALT() {
+    SetStatus(2);
+    WaitForInterrupt();
+}
+instruction STOP() {
+    SetStatus(3);
+    ShutdownCpu();
+}
+```
+
+## Initial State
+
+### Execution Address
+
+The CPU begins executing from address 0xFF00.
+
+### Register Contents
+
+* GPR, I/O Transfer, and Coprocessor Registers are undefined
+* System Registers are set according to the following:
+   * `sysctl`: All bits 0
+   * `copctl`: P bits set according to which Coprocessors are connected. Other bits are 0
+   * `inttab`: 0
+   * `intret`: Undefined
 
 !{#copyright}
