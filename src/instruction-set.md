@@ -251,7 +251,7 @@ instruction MOV(d: u5, s: u5, m: u2, dir: u1, c: ConditionCode, l: bool):
 | `ST`     | `0x03` | `dddddsssssww00000000000p` |
 | `LD`     | `0x04` | `dddddsssssww00000000000p` |
 | `LDI`    | `0x05` | `dddddh00iiiiiiiiiiiiiiii` |
-| `LRA`    | `0x06` | `ddddd000iiiiiiiiiiiiiiii` |
+| `LRA`    | `0x06` | `ddddd000oooooooooooooooo` |
 
 
 Payload Bits Legend:
@@ -270,6 +270,11 @@ Timing:
 * `SLDI`: 2 cycles
 
 Behaviour:
+* `ST`: Stores `1 << w` bytes from `d` to `[s]`
+* `LD`: Loads `1 << w` bytes from `[s]` into `d`
+* `LDI`: Loads an immediate `i` into the first (h=0) or upper (h=1) 16 bits of `d`
+* `LRA`: Loads the address `IP + o` (`o` is a signed immediate) into `d`. `IP` is taken from the beginning of the next instruction
+
 ```
 instruction ST(s: u5, d: u5, w: u2, p: bool):
     let val = ReadRegister(0,s);
@@ -308,7 +313,7 @@ instruction LRA(d: u5, i: u15):
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
-| `INC`    | `0x08` | `dddddsc00000iiiiiiiiiiii` |
+| `ADDI`   | `0x08` | `dddddsc00000iiiiiiiiiiii` |
 
 Timing: 2
 Payload Bits Legend:
@@ -462,7 +467,12 @@ Timing: `2+t+l+r` where:
 * `l` is `1` if Link Register is non-zero and the branch is taken, and `0` otherwise
 * `r` is `1` for `JMPR` and `0` for `JMP`
 
-Behaviour:
+Behaviour: Jumps to the destination, if the condition is satisfied, saving the return address in `l` if taken:
+
+* `JMP`: The offset is `IP + o * 4` where `o` is a signed offset. `IP` is the same as the return address and points to the beginning of the next instruction
+* `JMPR`: The offset is read from `r`
+
+
 ```
 instruction JMP(c: ConditionCode, l: u5, o: u15):
     let disp = SignExtend(o) << 2;
@@ -542,23 +552,8 @@ function CheckCondition(flags: u32, c: ConditionCode) is bool:
             return true;
 ```
 
-### Multiply/Divide
-
-| Mnemonic | Opcode | Payload                    |
-| -------- | ------ | -------------------------- |
-|          | `0--7` | `8---------------------31` |
-| `MUL`    | `0x12` | `hhhhhlllllaaaaabbbbbs0ww` |
-| `DIV`    | `0x13` | `qqqqqrrrrraaaaabbbbbs0ww` |
-
-Payload Bits Legend:
-* h: High Multiply Result
-* l: Low Multiply Result
-* q: Division Quotient
-* r: Division Remainder
-* a: First operand
-* b: Second operand
-* s: Signed/Unsigned 
-* w: Width
+Behaviour:
+* Multiplies 
 
 ### I/O Transfers
 
