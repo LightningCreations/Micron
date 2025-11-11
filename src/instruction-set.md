@@ -560,8 +560,8 @@ Behaviour:
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
-| `IN`     | `0x14` | `ddddd000000ppppppppwwwww` |
-| `OUT`    | `0x15` | `sssss000000ppppppppwwwww` |
+| `IN`     | `0x14` | `dddddpppppppp000000wwwww` |
+| `OUT`    | `0x15` | `ssssspppppppp000000wwwww` |
 
 Payload Bits Legend:
 * s: Source Transfer Register
