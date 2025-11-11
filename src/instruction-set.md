@@ -251,7 +251,7 @@ instruction MOV(d: u5, s: u5, m: u2, dir: u1, c: ConditionCode, l: bool):
 | `ST`     | `0x03` | `dddddsssssww00000000000p` |
 | `LD`     | `0x04` | `dddddsssssww00000000000p` |
 | `LDI`    | `0x05` | `dddddh00iiiiiiiiiiiiiiii` |
-| `LRA`    | `0x06` | `ddddd000oooooooooooooooo` |
+| `LRA`    | `0x06` | `dddddx00oooooooooooooooo` |
 
 
 Payload Bits Legend:
@@ -263,6 +263,7 @@ Payload Bits Legend:
 * `h`: Hi/lo bits
 * `q`: Scale Quantity
 * `p`: Push/Pop
+* `x`: Sign/Zero Extend
 
 Timing: 
 * `ST`, `LD`: 4 Cycles, plus Memory Delay
@@ -273,7 +274,7 @@ Behaviour:
 * `ST`: Stores `1 << w` bytes from `d` to `[s]`
 * `LD`: Loads `1 << w` bytes from `[s]` into `d`
 * `LDI`: Loads an immediate `i` into the first (h=0) or upper (h=1) 16 bits of `d`
-* `LRA`: Loads the address `IP + o` (`o` is a signed immediate) into `d`. `IP` is taken from the beginning of the next instruction
+* `LRA`: Loads the address `IP + o` (`o` is a signed immediate if `x` is true, and an unsigned immediate otherwise) into `d`. `IP` is taken from the beginning of the next instruction
 
 ```
 instruction ST(s: u5, d: u5, w: u2, p: bool):
@@ -303,8 +304,8 @@ instruction LDI(d: u5, i: u15, h: u1):
     let val = ZeroExtend(i);
     WritePartialRegister(0,d,val, 16*h..16+(16*h));
     
-instruction LRA(d: u5, i: u15):
-    let val = SignExtend(i) + IP;
+instruction LRA(d: u5, x: bool, i: u15):
+    let val = SignExtendOrZeroExtend(i, x) + IP;
     WriteRegister(0,d,val);
 ```
 
@@ -313,11 +314,12 @@ instruction LRA(d: u5, i: u15):
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
-| `ADDI`   | `0x08` | `dddddsc00000iiiiiiiiiiii` |
+| `ADDI`   | `0x08` | `dddddhcsiiiiiiiiiiiiiiii` |
 
 Timing: 2
 Payload Bits Legend:
 * `d`: Destination Register
+* `h`: High half
 * `s`: Extend Sign
 * `c`: Surpress Flags Modification
 * `i`: Immediate
