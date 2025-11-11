@@ -176,8 +176,8 @@ instruction UND():
 
 ### Pause
 
-| Mnemonic | Opcode | Payload                |
-| -------- | ------ | ---------------------- |
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
 | PAUSE    | `0x01` | `kkkkkk000000000000000000` |
 
@@ -194,8 +194,8 @@ instruction PAUSE(k: u6):
 
 ### Move 
 
-| Mnemonic | Opcode | Payload                   |
-| -------- | ------ | ------------------------- |
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------32` |
 | MOV      | `0x02` | `dddddsssssmmmccccrl00000` |
 

@@ -10,6 +10,7 @@
 # Toolchain Documents
 
 - [psABI](./psabi.md)
+- [Assembly Syntax](./assembly.md)
 
 ---
 

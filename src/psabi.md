@@ -43,11 +43,28 @@ Each primitive that is greater than 4 bytes in size are aligned to 4 bytes. This
 
 In Map 0, Registers r1-r15 are callee saved and are not preserved accross prodecure calls. Registers r16-r31 are caller saved and must be restored to their values at entry by the function. r0 is a constant 0 register and cannot be modified.
 
+r15 is recommended for use by code patterns that use a register to compute a value for immediate use. The Assembler may make use of this register implicitly to assemble certain psuedo-instructions. 
+
 Map 1 Registers should not be modified by toolchains, except through explicit arrangement with the program. The precise values of Map 1 Registers should not be relied upon.
 
 Registers in Map 2 and Maps 4-7 are callee saved and are not preserved accross procedure calls.
 
 r1 and r2 are used to return values up to 8 bytes in size. Registers r1 through r10 are used to pass up to 10 parameters. 
+
+### Register Overview
+
+| Register(s) | Purpose     | Callee/Caller Saved |
+|-------------|-------------|---------------------|
+| `r0`        | Constant 0  | Constant Register   |
+| `r1`        | Param/Return Register | Caller Saved |
+| `r2`        | Param/Return Register | Caller Saved |
+| `r3`-`r10`  | Param Register | Caller Saved |
+| `r11`-`r14` | Scratch Register | Caller Saved |
+| `r15`       | Special-Purpose Scratch Register | Caller Saved |
+| `r16`-`r27` | Callee Saved Register | Callee Saved |
+| `r28`-`r29` | Reserved Register | Callee Saved/Reserved |
+| `r30` | Stack Pointer | Callee Saved |
+| `r31` | Return Pointer | Callee Saved |
 
 ### Stack, Link Register, Reserved Registers
 
@@ -65,6 +82,7 @@ r31 is reserved to be the standard link register. Upon entry to any procedure, `
 
 > [!NOTE]
 > While r31 remains caller saved, every function call that isn't a tailcall will necessarily modify this register and require the register to be spilled to memory.
+> The exception is if the function does not expect to return.
 
 ### Parameter Passing/Return Convention
 
