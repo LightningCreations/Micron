@@ -25,7 +25,8 @@ There are 8 maps of registers:
 * Map 1: System Configuration
 * Map 2: I/O Transfer Registers
 * Map 3: Information
-* Maps 4-7: Co-processor Registers.
+* Map 4: Coprocessor Control
+* Maps 8-15: Co-processor Registers.
 
 There are 32 registers of each type. Except for Map 0, not all registers may be defined.
 
@@ -49,9 +50,10 @@ Refer to the following table of defined registers. System Configuration Register
 | Regno. | Aliases  | Description    |
 | ------ | -------- | -------------- |
 | 0      | `sysctl` | System Control |
-| 1      | `copctl` | Co-processor Control |
 | 2      | `inttab` | Interrupt Table Pointer |
 | 31     | `intret` | Interrupt Procedure return register |
+
+Reading or Writing an undefined register causes `EX[2]`. Writing an invalid value to a defined register causes `EX[5]`
 
 #### System Control (Map 1, Register 0)
 
@@ -70,23 +72,6 @@ Format:
 | `i`  | Interrupt Enable (IE)     | Only process IRQs when set to 1. |
 | `t`  | Trap     | Set to 1 by the processor when an Exception occurs. IRQs and Unit Error interrupts are not processed while this bit is set. Only cleared manually. |
 
-#### Co-processor Control (Map 1, Register 1)
-
-Format:
-```
-+0-----------------------------31+
-|PPPPEEEEaaaaaabbbbbbccccccdddddd|
-+--------------------------------+
-```
-
-| Bits | Name                 | Description                                                             |
-| ---- | -------------------- | ----------------------------------------------------------------------- |
-| `P`  | Co-processor Present | Each bit Set to 1 by the Processor if present, 0 otherwise. Must not be modified |
-| `E`  | Co-processor Enabled | If the corresponding bit in `P` is set, can be set to `1` to allow use of the specified co-processor|
-| `a`  | Co-processor 0 control| Control bits for co-processor 0, defined by the co-processor |
-| `b`  | Co-processor 1 control| Control bits for co-processor 1, defined by the co-processor |
-| `c`  | Co-processor 2 control| Control bits for co-processor 2, defined by the co-processor |
-| `d`  | Co-processor 3 control| Control bits for co-processor 3, defined by the co-processor |
 
 #### Interrupt/Exception Table (Map 1, Register 2)
 
@@ -115,22 +100,20 @@ The `p` bit must be set for all interrupt vectors that are present and valid to 
 ##### Interrupts
 
 The first 16 interrupt entries are reserved for hardware exceptions, these interrupts are allocated as follows (and the `n`th entry in this list is designated elsewise as `EX[n]`):
-* Entry `0`: Exception Handling Fault - raising an exception causes an exception, including:
-    * A Bus Fault Reading the interrupt table or the appropriate vector
-    * An invalid format of an exception vector
-    * A not-present exception vector
+* Entry `0`: Exception Handling Fault - an exception is raised when the `t` flag is set. 
 * Entry `1`: Bus Fault - accessing memory in a particular manner causes an error, or attempts to access memory that doesn't exist.
 * Entry `2`: Invalid Instruction - An instruction that is executed is an unknown opcode, reserved, malformed, or invalid
 * Entry `3`: Unaligned Branch Target - an indirect branch is unaligned.
-* Entries `4`-`7`: Co-processor Unit `n` Error - The corresponding Coprocessor unit `n` signals an error after a `CPIn` instruction (`n` is Exception number - 4).
-* Entry `15`: Non-maskable Interrupt - May be raised in response to a priority signal external to the processor that requires immediate resolution. This is handled like an IRQ, but does not obey the `i` flag. 
-* Entries `8`-`14` are reserved for future use and are not raised by the current Instruction Set Version.
+* Entry `4`: Consistency - An invalid system control register was loaded from memory, or an invalid value was written to a system register.
+* Entry `7`: Non-maskable Interrupt - May be raised in response to a priority signal external to the processor that requires immediate resolution. This is handled like an IRQ, but does not obey the `i` flag. 
+* Entries `8`-`15`: Co-processor Unit `n` Error - The corresponding Coprocessor unit `n` signals an error after a `CPIn` instruction (`n` is Exception number - 4).
+* Entries `5`, `6`, and `16`-`31` are reserved.
 
-The remaining entries (16-63), may be allocated as IRQ vectors.
+The remaining entries (32-63), may be allocated as IRQ vectors.
 
 Exceptions are raised regardless of the `i` bit. The `t` bit is set to `1` when an exception is raised. It is not modified by any other interrupt (including an NMI) being raised.
 
-In an exception occurs raising `EX[0]`, the processor RESETs. 
+If an exception occurs raising `EX[0]`, the processor RESETs. 
 
 #### Interrupt Return Pointer (Map 1, Register 31)
 
@@ -144,11 +127,48 @@ Map 2 defines a sequence of input and output shift registers for transfering dat
 
 ### Map 3: Information Registers
 
-The Information Registers Map is a Read Only Map that contains information about the CPU. All Registers Presently Read 0. Writes are illegal.
+The Information Registers Map is a Read Only Map that contains information about the CPU. All Registers Presently Read 0. Writes are illegal and raise `EX[2]`
 
-### Map 4-7: Co-processor Maps
+### Map 4: Coprocessor Control
 
-Co-processors connected to the system may expose up to 32 registers each. Registers in map `N` are only defined if the given co-processor is enabled.
+Each Co-processor has a 32-bit control word, which is defined by the Coprocessor.
+
+Register N in Map 4 is defined if Co-processor N is present and enabled. 
+
+Reads and writes to an undefined register or a register corresponding to a not-present or disabled coprocessor results in `EX[2]`.
+
+#### Map 4, Register 30: Coprocessor Enable
+
+The Coprocessor Enable register allows the system software to control what coprocessors are operating and usable from the CPU.
+
+Format:
+```
++0-----------------------------32+
+|EEEEEEEE000000000000000000000000|
++--------------------------------+
+```
+
+The bits marked `E` may be set by the program when the corresponding bit of Register 31 is set. Setting the nth bit to 1 enables the coprocessor and setting it to 0 disables it.
+
+Bits marked as 0 must not be written with 1.
+
+#### Map 4, Register 31: Coprocessor Present
+
+The Coprocessor Enable register allows the system software to determine what coprocessors are connected to the CPU. This register is read-only and cannot be written from the CPU. Attempting such a write with a MOV instruction raises `EX[2]`.
+
+Format:
+```
++0-----------------------------32+
+|PPPPPPPP000000000000000000000000|
++--------------------------------+
+```
+
+The nth bit is set to 1 if the nth coprocessor is present. Note that it is not guaranteed that the set of enabled coprocessors is contiguous or that the set of enabled coprocessors begins at 0.
+
+
+### Map 8-15: Co-processor Maps
+
+Co-processors connected to the system may expose up to 32 registers each. Registers in map `N` are only defined if the coprocessor co-processor (Co-processor N-8) is enabled.
 
 ## Instructions
 
@@ -197,7 +217,7 @@ instruction PAUSE(k: u6):
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------32` |
-| MOV      | `0x02` | `dddddsssssmmmccccrl00000` |
+| MOV      | `0x02` | `dddddsssss00lccccrmmmm00` |
 
 Payload Bits Legend:
 * `d`: Destination Register
@@ -250,7 +270,6 @@ instruction MOV(d: u5, s: u5, m: u2, dir: u1, c: ConditionCode, l: bool):
 |          | `0--7` | `8---------------------32` |
 | `ST`     | `0x03` | `dddddsssssww00000000000p` |
 | `LD`     | `0x04` | `dddddsssssww00000000000p` |
-| `LDI`    | `0x05` | `dddddh00iiiiiiiiiiiiiiii` |
 | `LRA`    | `0x06` | `dddddx00oooooooooooooooo` |
 
 
@@ -300,10 +319,6 @@ instruction LD(s: u5, d: u5,w: u2, p: u2):
     let val = ReadAlignedMemoryZeroExtend(addr, w+1);
     WriteRegister(0,s,val);
     
-instruction LDI(d: u5, i: u15, h: u1):
-    let val = ZeroExtend(i);
-    WritePartialRegister(0,d,val, 16*h..16+(16*h));
-    
 instruction LRA(d: u5, x: bool, i: u15):
     let val = SignExtendOrZeroExtend(i, x) + IP;
     WriteRegister(0,d,val);
@@ -321,7 +336,7 @@ Payload Bits Legend:
 * `d`: Destination Register
 * `h`: High half
 * `s`: Extend Sign
-* `c`: Surpress Flags Modification
+* `c`: Supress Flags Modification
 * `i`: Immediate
 
 Behaviour: Adds a 12-bit zero or sign-extended immediate to `d`.
@@ -331,13 +346,11 @@ Behaviour: Adds a 12-bit zero or sign-extended immediate to `d`.
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
-| `ADD`    | `0x09` | `aaaaabbbbbdddddcsssssp00` |
-| `SUB`    | `0x0A` | `aaaaabbbbbdddddcsssssp00` |
-| `AND`    | `0x0B` | `aaaaabbbbbdddddcsssssp00` |
-| `OR`     | `0x0C` | `aaaaabbbbbdddddcsssssp00` |
-| `XOR`    | `0x0D` | `aaaaabbbbbdddddcsssssp00` |
-| `SHL`    | `0x0E` | `aaaaabbbbbdddddcoow00000` |
-| `SHR`    | `0x0F` | `aaaaabbbbbdddddcoow00000` |
+| `ADD`    | `0x09` | `dddddaaaaabbbbbcsssssp00` |
+| `SUB`    | `0x0A` | `dddddaaaaabbbbbcsssssp00` |
+| `AND`    | `0x0B` | `dddddaaaaabbbbbcsssssp00` |
+| `OR`     | `0x0C` | `dddddaaaaabbbbbcsssssp00` |
+| `XOR`    | `0x0D` | `dddddaaaaabbbbbcsssssp00` |
 
 Timing: 2
 
@@ -348,8 +361,6 @@ Payload Bits Legend:
 * `c`: Suppress Condition
 * `p`: Shift Polarity
 * `s`: Shift Quantity
-* `o`: Shift Fill
-* `w`: Wrap Shift
 
 Behaviour:
 ```
@@ -384,71 +395,31 @@ instruction {ADD, SUB, AND, OR, XOR}(a: u5, b: u5, d: u5, c: bool, s: u5, p: boo
             flags_mask = 0x3;
     if not c:
         SetFlagsRegisterByMask(flags_mask, flags_val);
-       
-enum ShiftFill as u2:
-    Zero = 0,
-    Arith = 1,
-    Carry = 2,
-    Rotate = 3
-    
-instruction SHL(a: u5, b: u5, d: u5, c: bool, o: ShiftFill, w: bool):
-    let src = ReadRegister(0,a);
-    let shift = ReadRegister(0,b);
-    if (not w) and o == Rotate:
-        raise(EX[2]);
-        
-    let res: u32;
-    let flags: u4;
-    if w or shift < 32:
-        switch (o):
-            case Zero | Arith:
-                res, flags = src << (shift & 0x31);
-            case Carry:
-                res, flags = LeftShiftWithCarry(src, shift & 0x31);
-            case Rotate:
-                res = LeftRotate(src, shift & 0x31);
-                flags = ComputeLogicCondition(res);
-    else if o == Carry:
-        let temp = res[0];
-        res[0..32] = GetFlags().carry;
-        flags = ComputeLogicCondition(res) | temp << 2;
-    else:
-        let temp = res[0];
-        res = 0;
-        flags = temp << 2 | 0;
-    WriteRegister(0,d);
-    if not c:
-        SetFlagsRegisterByMask(flags_mask, 0xB);
-        
-instruction SHR(a: u5, b: u5, d: u5, c: bool, o: ShiftFill, w: bool):
-    let src = ReadRegister(0,a);
-    let shift = ReadRegister(0,b);
-    if (not w) and o == Rotate:
-        raise(EX[2]);
-        
-    let res: u32;
-    let flags: u4;
-    if w:
-        switch (o):
-            case Zero | Arith:
-                res, flags = src >> (shift & 0x31);
-            case Carry:
-                res, flags = RightShiftWithCarry(src, shift & 0x31);
-            case Rotate:
-                res = RightRotate(src, shift & 0x31);
-                flags = ComputeLogicCondition(res);
-    else if o == Carry:
-        let temp = res[31];
-        res[0..32] = GetFlags().carry;
-        flags = ComputeLogicCondition(res) | temp << 2;
-    else:
-        let temp = res[31];
-        res = 0;
-        flags = temp << 2 | 0;
-    WriteRegister(0,d);
-    if not c:
-        SetFlagsRegisterByMask(flags_mask, 0xB);
+
 ```
+
+### Butterfly Shifts
+
+| Mnemonic | Opcode | Payload                    |
+| -------- | ------ | -------------------------- |
+|          | `0--7` | `8---------------------31` |
+| `BSL`    | `0x0E` | `dddddvvvvvqqqqqcx0wrrrrr` |
+| `BSR`    | `0x0F` | `dddddvvvvvqqqqqcx0wrrrrr` |
+
+Timing: 3
+
+Payload Bits Legend:
+* `d`: Destination Register
+* `v`: Input Value
+* `q`: Shift Quantity
+* `c`: Suppress Condition
+* `w`: Wrap Quantity
+* `r`: Shift Remainder (Input value)
+* `x`: Invert by Sign
+
+
+Behaviour: Shifts `v` by `q` and places the value in 
+
 
 ### Branches
 
@@ -636,11 +607,11 @@ instruction STFL(s: u5)
 | -------- | -------- | -------------------------- |
 |          | `0--7`   | `8---------------------31` |
 | `CPIx`   | `0x20`+x | `ffffpppppppppppppppppppp` |
-| `CPIxEF` | `0x24`+x | `ffffffpppppppppppppppppp` |
 | `NCPIx`  | `0x28`+x | `ffffpppppppppppppppppppp` |
-| `NCPIxEF`| `0x2C`+x | `ffffffpppppppppppppppppp` |
+| `CPIxEF` | `0x30`+x | `ffffffpppppppppppppppppp` |
+| `NCPIxEF`| `0x38`+x | `ffffffpppppppppppppppppp` |
 
-(`x` is a value from `0` to `3`, representing the co-processor number to invoke, for example, `CPI0` has opcode 0x18 and `CPI3` has opcode 0x1B)
+(`x` is a value from `0` to `7`, representing the co-processor number to invoke, for example, `CPI0` has opcode 0x20 and `NCPI7` has opcode 0x2F)
 
 Timing: 2 + N where:
 * For `CPIx` and `CPIxEF`, `N` is the delay in cycles before the co-processor becomes ready to execute again
