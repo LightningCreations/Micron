@@ -297,6 +297,8 @@ Behaviour:
 
 ```
 instruction ST(s: u5, d: u5, w: u2, p: bool):
+    if d==0:
+       Raise(EX[2]);
     let val = ReadRegister(0,s);
     let addr: u32;
     let width = 2 << w;
@@ -305,10 +307,14 @@ instruction ST(s: u5, d: u5, w: u2, p: bool):
     if p:
         addr = ReadRegister(0,d) - width;
         WriteRegister(0,d, addr);
+    else:
+        addr = ReadRegoster(0,d);
 
     WriteAlignedMemoryTruncate(addr, val, width);
     
 instruction LD(s: u5, d: u5,w: u2, p: u2):
+    if s==0:
+        Raise(EX[2])
     let width = 2 << w;
     if width == 8:
             Raise(EX[2]);
@@ -704,8 +710,8 @@ instruction {NCPI0EF, NCPI1EF, NCPI2EF, NCPI3EF}(f: u6, p: u18):
 | Mnemonic | Opcode   | Payload                    |
 | -------- | -------- | -------------------------- |
 |          | `0--7`   | `8---------------------31` |
-| `HALT`   | `0x30`   | `000000000000000000000000` |
-| `STOP`   | `0x31`   | `000000000000000000000000` |
+| `HALT`   | `0x40`   | `000000000000000000000000` |
+| `STOP`   | `0x41`   | `000000000000000000000000` |
 
 Timing: 
 * `HALT`: 1
