@@ -116,4 +116,15 @@ The Use of a hardware floating-point coprocessor to compile floating-point opera
 
 Regardless of the use of a floating-point co-processor, floating-point values are not passed using floating-point registers, and are still passed using general purpose parameter registers when <= 8 bytes in size.
 
+## ELF Files
+
+### OSABI
+
+The following OSABI values are defined
+
+| OSABI | Constant          | Description         |
+|-------|-------------------|---------------------|
+| `0-63`| Multiple          | See gABI OSABI list |
+| `255` | `OSABISTANDALONE` | Standalone/Freestanding target |
+
 !{#copyright}

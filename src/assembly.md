@@ -176,3 +176,9 @@ Each Chart has the following information:
 | `POP`    | `GPR <d>, GPR <s>`             | `0x03` | `p=1,w=4`                 | No        |
 | `PUSH`   | `GPR <s>`                      | `0x04` | `p=1,w=4,d=30`            | No        |
 | `POP`    | `GPR <d>`                      | `0x03` | `p=1,w=4,d=30`            | No        |
+
+### `ADDI`
+
+| Mnemonic | Operands                       | Opcode | Special Payload Encoding  | Canonical |
+|----------|--------------------------------|--------|---------------------------|-----------|
+| `ADDI`   | `GPR <d>, SIMM16 <s>`          | `0x08` |
