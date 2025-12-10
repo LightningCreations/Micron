@@ -270,6 +270,7 @@ instruction MOV(d: u5, s: u5, m: u2, dir: u1, c: ConditionCode, l: bool):
 |          | `0--7` | `8---------------------32` |
 | `ST`     | `0x03` | `dddddsssssww00000000000p` |
 | `LD`     | `0x04` | `dddddsssssww00000000000p` |
+| `LDI`    | `0x05` | `dddddx00iiiiiiiiiiiiiiii` |
 | `LRA`    | `0x06` | `dddddx00oooooooooooooooo` |
 
 
@@ -279,7 +280,6 @@ Payload Bits Legend:
 * `w`: Width
 * `i`: Immediate Value
 * `o`: Offset
-* `h`: Hi/lo bits
 * `q`: Scale Quantity
 * `p`: Push/Pop
 * `x`: Sign/Zero Extend
@@ -287,12 +287,11 @@ Payload Bits Legend:
 Timing: 
 * `ST`, `LD`: 4 Cycles, plus Memory Delay
 * `LDI`, `LRA`: 1 Cycle
-* `SLDI`: 2 cycles
 
 Behaviour:
 * `ST`: Stores `1 << w` bytes from `d` to `[s]`
 * `LD`: Loads `1 << w` bytes from `[s]` into `d`
-* `LDI`: Loads an immediate `i` into the first (h=0) or upper (h=1) 16 bits of `d`
+* `LDI`: Loads an immediate `i` (sign or zero exteneded) into the first (h=0) 16 bits of `d`
 * `LRA`: Loads the address `IP + o` (`o` is a signed immediate if `x` is true, and an unsigned immediate otherwise) into `d`. `IP` is taken from the beginning of the next instruction
 
 ```
@@ -304,6 +303,8 @@ instruction ST(s: u5, d: u5, w: u2, p: bool):
     let width = 2 << w;
     if width == 8:
         Raise(EX[2]);
+    if addr & (width - 1):
+        Raise(Ex[1])
     if p:
         addr = ReadRegister(0,d) - width;
         WriteRegister(0,d, addr);
@@ -318,6 +319,8 @@ instruction LD(s: u5, d: u5,w: u2, p: u2):
     let width = 2 << w;
     if width == 8:
             Raise(EX[2]);
+    if addr & (width - 1):
+        Raise(Ex[1])
     let addr: u32;
     addr = ReadRegister(0,s);
     if p:
@@ -335,7 +338,7 @@ instruction LRA(d: u5, x: bool, i: u15):
 | Mnemonic | Opcode | Payload                    |
 | -------- | ------ | -------------------------- |
 |          | `0--7` | `8---------------------31` |
-| `ADDI`   | `0x08` | `dddddhcsiiiiiiiiiiiiiiii` |
+| `ADDI`   | `0x08` | `dddddschiiiiiiiiiiiiiiii` |
 
 Timing: 2
 Payload Bits Legend:
@@ -495,44 +498,42 @@ enum ConditionCode is u4:
     NotCarry = 14,
     Always = 15
 
-function CheckCondition(flags: u32, c: ConditionCode) is bool:
-    switch (c):
+function CheckCondition(flags: u32, cc: ConditionCode) is bool:
+    switch (cc):
         case Never:
             return false;
         case Carry:
-            return (flags & 0x80) != 0;
+            return (flags & c) != 0;
         case Zero:
-            return (flags & 0x01) != 0;
+            return (flags & z) != 0;
         case Overflow:
-            return (flags & 0x40) != 0;
+            return (flags & v) != 0;
         case CarryOrEqual:
-            return (flags & 0x81) != 0;
+            return (flags & c|z) != 0;
         case SignedLess:
-            return (((flags & 0x40) != 0) == ((flags & 0x02) != 0)) and (flags & 0x01) == 0;
+            return (((flags & v) != 0) == ((flags & n) != 0)) and (flags & z) == 0;
         case SignedLessOrEq:
-            return (((flags & 0x40) != 0) == ((flags & 0x02) != 0)) or (flags & 0x01) != 0;
+            return (((flags & v) != 0) == ((flags & n) != 0)) or (flags & z) != 0;
         case Negative:
-            return (flags & 0x02) != 0;
+            return (flags & n) != 0;
         case Positive:
-            return (flags & 0x02) == 0;
+            return (flags & n) == 0;
         case SignedGreater:
-            return not ((((flags & 0x40) != 0) == ((flags & 0x02) != 0)) or (flags & 0x01) != 0);
+            return not ((((flags & v) != 0) == ((flags & n) != 0)) or (flags & z) != 0);
         case SignedGreaterOrEq:
-            return not ((((flags & 0x40) != 0) == ((flags & 0x02) != 0)) and (flags & 0x01) == 0);
+            return not ((((flags & v) != 0) == ((flags & n) != 0)) and (flags & z) == 0);
         case Above:
-            return (flags & 0x81) == 0;
+            return (flags & c|z) == 0;
         case NotOverflow:
-            return (flags & 0x40) == 0;
+            return (flags & v) == 0;
         case NotZero:
-            return (flags & 0x01) == 0;
+            return (flags & z) == 0;
         case NotCarry:
-            return (flags & 0x80) == 0;
+            return (flags & c) == 0;
         case Always:
             return true;
 ```
 
-Behaviour:
-* Multiplies 
 
 ### I/O Transfers
 
@@ -583,19 +584,20 @@ Payload Bits Legend:
 Timing: 1
 
 Behaviour:
-* `LDFLAGS` loads the flags bits into the lower 4 bits of `d` (zero extended)
-* `STFLAGS` stores the lower 4 bits of `s` into the flags bits
+* `LDFLAGS` loads the flags bits into the lower 5 bits of `d` (zero extended)
+* `STFLAGS` stores the lower 5 bits of `s` into the flags bits
 
 The Flags Bits are:
 
-| `0--3` |
-|--------|
-| `cvnz` |
+| `0---4` |
+|---------|
+| `cvnzp` |
 
 * `c`: Carry
 * `v`: Signed Overflow
 * `n`: Negative
 * `z`: Zero
+* `p`: Parity
 
 ```
 instruction LDFL(d: u5):
