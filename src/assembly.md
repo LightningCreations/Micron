@@ -67,14 +67,14 @@ With the `@pcrel` modifier (or for `PCREL16`, see below), the relocation uses (g
 
 ### Offsets
 
-The `PCREL16` and `OFF20` values are special cases of immediates. 
+The `PCREL16` and `OFF15` values are special cases of immediates. 
 PCREL16 is identical to a `SIMM16` relocation, except that it defaults to resolving the specified symbol using a pc-relative relocation.
 
-`OFF20` is a 20-bit immediate that resolves a 22-bit pc-relative relocation or a 22-bit signed integer offset, and discards the lower two bits to encode the instruction. It has two constraints, in addition to the constraints that would apply to a 22-bit signed immediate:
+`OFF15` is a 15-bit immediate that resolves a 17-bit pc-relative relocation or a 17-bit signed integer offset, and discards the lower two bits to encode the instruction. It has two constraints, in addition to the constraints that would apply to a 22-bit signed immediate:
 * Absolute Expressions must be divisible by 4, and
 * Relocation Expressions must produce a 4-byte aligned quantity. The Assembler may error if a misalignment is reliably detected (for example, a 3-byte offset from a symbol known to be 4-byte aligned).
 
-`OFF20` uses `R_MICRON_JMPOFF` relocation.
+`OFF15` uses `R_MICRON_JMPOFF` relocation.
 
 ### Sizes/Widths
 
@@ -98,8 +98,7 @@ Condition Codes appear only in mnemonics, and use the following 1 or 2 character
 | `B`        | Below          | 1      | No        |
 | `Z`        | Zero           | 2      | Yes       |
 | `EQ`       | Equal          | 2      | No        |
-| `V`        | Overflow       | 3      | Yes       |
-| `O`        | Overflow       | 3      | No        |
+| `O`        | Overflow       | 3      | Yes       |
 | `CE`       | Carry/Equal    | 4      | Yes       |
 | `BE`       | Below or Equal | 4      | No        |
 | `LT`       | Less           | 5      | Yes       |
@@ -115,8 +114,7 @@ Condition Codes appear only in mnemonics, and use the following 1 or 2 character
 | `A`        | Above          | 11     | Yes       |
 | `NBE`      | Not Below or Equal | 11 | No        |
 | `NCE`      | Not Carry or Equal | 11 | No        |
-| `NV`       | Not Overflow   | 12     | Yes       |
-| `NO`       | Not Overflow   | 12     | No        |
+| `NO`       | Not Overflow   | 12     | Yes       |
 | `NZ`       | Not Zero       | 13     | Yes       |
 | `NE`       | Not Equal      | 13     | No        |
 | `NC`       | Not Carry      | 14     | Yes       |
@@ -181,4 +179,56 @@ Each Chart has the following information:
 
 | Mnemonic | Operands                       | Opcode | Special Payload Encoding  | Canonical |
 |----------|--------------------------------|--------|---------------------------|-----------|
-| `ADDI`   | `GPR <d>, SIMM16 <s>`          | `0x08` |
+| `ADDI`   | `GPR <d>, SIMM16 <i>`          | `0x08` | `s=1,c=0,h=0`             | Yes       |
+| `ADDIU`  | `GPR <d>, UIMM16 <i>`          | `0x08` | `s=0,c=0,h=0`             | Yes       |
+| `ADDIH`  | `GPR <d>, UIMM16 <i>`          | `0x08` | `s=0,c=0,h=1`             | Yes       |
+| `ADDIH`  | `GPR <d>, SIMM16 <i>`          | `0x08` | `s=0,c=0,h=1`             | No        |
+| `ADDINC` | `GPR <d>, SIMM16 <i>`          | `0x08` | `s=1,c=1,h=0`             | Yes       |
+| `ADDIUNC`| `GPR <d>, UIMM16 <i>`          | `0x08` | `s=0,c=1,h=0`             | Yes       |
+| `ADDIHNC`| `GPR <d>, UIMM16 <i>`          | `0x08` | `s=0,c=1,h=1`             | Yes       |
+| `ADDIHNC`| `GPR <d>, SIMM16 <i>`          | `0x08` | `s=0,c=1,h=1`             | No        |
+| `INC`    | `GPR <d>`                      | `0x08` | `s=0,c=0,h=0,i=1`         | No        |
+| `DEC`    | `GPR <d>`                      | `0x08` | `s=1,c=0,h=0,i=0xFFFF`    | No        |
+
+### ALU Ops
+
+| Mnemonic | Operands                           | Opcode | Special Payload Encoding  | Canonical |
+|----------|------------------------------------|--------|---------------------------|-----------|
+| `ADD`    | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x09` | `c=0,p=0`                 | Yes       |
+| `ADD`    | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x09` | `c=0,p=1`                 | Yes       |
+| `ADD`    | `GPR <d>, GPR <a>, GPR <b>`        | `0x09` | `c=0,p=0,s=0`             | No        |
+| `ADDNC`  | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x09` | `c=1,p=0`                 | Yes       |
+| `ADDNC`  | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x09` | `c=1,p=1`                 | Yes       |
+| `ADDNC`  | `GPR <d>, GPR <a>, GPR <b>`        | `0x09` | `c=1,p=0,s=0`             | No        |
+| `SUB`    | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0A` | `c=0,p=0`                 | Yes       |
+| `SUB`    | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0A` | `c=0,p=1`                 | Yes       |
+| `SUB`    | `GPR <d>, GPR <a>, GPR <b>`        | `0x0A` | `c=0,p=0,s=0`             | No        |
+| `SUBNC`  | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0A` | `c=1,p=0`                 | Yes       |
+| `SUBNC`  | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0A` | `c=1,p=1`                 | Yes       |
+| `SUBNC`  | `GPR <d>, GPR <a>, GPR <b>`        | `0x0A` | `c=1,p=0,s=0`             | No        |
+| `AND`    | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0B` | `c=0,p=0`                 | Yes       |
+| `AND`    | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0B` | `c=0,p=1`                 | Yes       |
+| `AND`    | `GPR <d>, GPR <a>, GPR <b>`        | `0x0B` | `c=0,p=0,s=0`             | No        |
+| `ANDNC`  | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0B` | `c=1,p=0`                 | Yes       |
+| `ANDNC`  | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0B` | `c=1,p=1`                 | Yes       |
+| `ANDNC`  | `GPR <d>, GPR <a>, GPR <b>`        | `0x0B` | `c=1,p=0,s=0`             | No        |
+| `OR`     | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0C` | `c=0,p=0`                 | Yes       |
+| `OR`     | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0C` | `c=0,p=1`                 | Yes       |
+| `OR`     | `GPR <d>, GPR <a>, GPR <b>`        | `0x0C` | `c=0,p=0,s=0`             | No        |
+| `ORNC`   | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0C` | `c=1,p=0`                 | Yes       |
+| `ORNC`   | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0C` | `c=1,p=1`                 | Yes       |
+| `ORNC`   | `GPR <d>, GPR <a>, GPR <b>`        | `0x0C` | `c=1,p=0,s=0`             | No        |
+| `XOR`    | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0D` | `c=0,p=0`                 | Yes       |
+| `XOR`    | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0D` | `c=0,p=1`                 | Yes       |
+| `XOR`    | `GPR <d>, GPR <a>, GPR <b>`        | `0x0D` | `c=0,p=0,s=0`             | No        |
+| `XORNC`  | `GPR <d>, SGPR <a> << <s>, GPR <b>`| `0x0D` | `c=1,p=0`                 | Yes       |
+| `XORNC`  | `GPR <d>, GPR <a>, SGPR <b> << <s>`| `0x0D` | `c=1,p=1`                 | Yes       |
+| `XORNC`  | `GPR <d>, GPR <a>, GPR <b>`        | `0x0D` | `c=1,p=0,s=0`             | No        |
+| `CMP`    | `SGPR <a><< <s<, GPR <b>`          | `0x0A` | `c=0,p=0,d=0`             | No        |
+| `CMP`    | `GPR <a>, SGPR <b> << <s>`         | `0x0A` | `c=0,p=1,d=0`             | No        |
+| `CMP`    | `GPR <a>, GPR <b>`                 | `0x0A` | `c=0,p=0,s=0,d=0`         | No        |
+| `TEST`   | `SGPR <a><< <s<, GPR <b>`          | `0x0B` | `c=0,p=0,d=0`             | No        |
+| `TEST`   | `GPR <a>, SGPR <b> << <s>`         | `0x0B` | `c=0,p=1,d=0`             | No        |
+| `TEST`   | `GPR <a>, GPR <b>`                 | `0x0B` | `c=0,p=0,s=0,d=0`         | No        |
+| `SHL`    | `GPR <d>, GPR <a>, ABSIMM6 <s>`    | `0x09` | `c=0,p=0,b=0`             | No        |
+| `SHLNC`  | `GPR <d>, GPR <a>, ABSIMM6 <s>`    | `0x09` | `c=1,p=0,b=0`             | No        |
