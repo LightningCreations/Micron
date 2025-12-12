@@ -18,7 +18,7 @@ The following operand syntax types are used in instructions
 | `SIMM32`| Immediate (signed 32-bit) | 32-bit immediate operand        |
 | `BITW`  | Bit Width        | Width of a value in bits                 |
 | `BYTESZ`| Byte Size        | Size of a value in bytes                 |
-|`ABSIMM2`| Immediate (unsigned 2-bit) | 2-bit absolute (non-relocated) immediate |
+|`ABSIMM3`| Immediate (unsigned 3-bit) | 3-bit absolute (non-relocated) immediate |
 |`ABSIMM5`| Immediate (unsigned 5-bit) | 5-bit absolute (non-relocated) immediate |
 |`ABSIMM6`| Immediate (unsigned 6-bit) | 6-bit absolute (non-relocated) immediate |
 |`ABSIMM8`| Immediate (unsigned 8-bit) | 8-bit absolute (non-relocated) immediate |
@@ -230,5 +230,80 @@ Each Chart has the following information:
 | `TEST`   | `SGPR <a><< <s<, GPR <b>`          | `0x0B` | `c=0,p=0,d=0`             | No        |
 | `TEST`   | `GPR <a>, SGPR <b> << <s>`         | `0x0B` | `c=0,p=1,d=0`             | No        |
 | `TEST`   | `GPR <a>, GPR <b>`                 | `0x0B` | `c=0,p=0,s=0,d=0`         | No        |
-| `SHL`    | `GPR <d>, GPR <a>, ABSIMM6 <s>`    | `0x09` | `c=0,p=0,b=0`             | No        |
-| `SHLNC`  | `GPR <d>, GPR <a>, ABSIMM6 <s>`    | `0x09` | `c=1,p=0,b=0`             | No        |
+| `SHL`    | `GPR <d>, GPR <a>, ABSIMM5 <s>`    | `0x09` | `c=0,p=0,b=0`             | No        |
+| `SHLNC`  | `GPR <d>, GPR <a>, ABSIMM5 <s>`    | `0x09` | `c=1,p=0,b=0`             | No        |
+
+### Shifts
+
+| Mnemonic | Operands                            | Opcode | Special Payload Encoding  | Canonical |
+|----------|-------------------------------------|--------|---------------------------|-----------|
+| `BSL`    | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=0, x=0,c=0`            | Yes       |
+| `BSLW`   | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=1, x=0, c=0`           | Yes       |
+| `BSLNC`  | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=0,x=0,c=1`             | Yes       |
+| `BSLWNC` | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=1,x=0,c=1`             | Yes       |
+| `XBSL`   | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=0, x=1,c=0`            | Yes       |
+| `XBSLW`  | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=1, x=1, c=0`           | Yes       |
+| `XBSLNC` | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=0,x=1,c=1`             | Yes       |
+| `XBSLWNC`| `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0E` | `w=1,x=1,c=1`             | Yes       |
+| `SHL`    | `GPR <d>, GPR <v>, GPR <q>`         | `0x0E` | `w=0,x=0,c=0,r=0`         | No        |
+| `SHLW`   | `GPR <d>, GPR <v>, GPR <q>`         | `0x0E` | `w=1,x=0,c=0,r=0`         | No        |
+| `SHLNC`  | `GPR <d>, GPR <v>, GPR <q>`         | `0x0E` | `w=0,x=0,c=1,r=0`         | No        |
+| `SHLWNC` | `GPR <d>, GPR <v>, GPR <q>`         | `0x0E` | `w=1,x=0,c=1,r=0`         | No        |
+| `ROL`    | `GPR <d>, GPR <v>, GPR <q>`         | `0x0E` | `w=1,x=0,c=0,r=v`         | No        |
+| `ROLNC`  | `GPR <d>, GPR <v>, GPR <q>`         | `0x0E` | `w=1,x=0,c=1,r=v`         | No        |
+| `BSR`    | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=0, x=0,c=0`            | Yes       |
+| `BSRW`   | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=1, x=0, c=0`           | Yes       |
+| `BSRNC`  | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=0,x=0,c=1`             | Yes       |
+| `BSRWNC` | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=1,x=0,c=1`             | Yes       |
+| `XBSR`   | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=0, x=1,c=0`            | Yes       |
+| `XBSRW`  | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=1, x=1, c=0`           | Yes       |
+| `XBSRNC` | `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=0,x=1,c=1`             | Yes       |
+| `XBSRWNC`| `GPR <d>, GPR <v>, GPR <q>, GPR <r>`| `0x0F` | `w=1,x=1,c=1`             | Yes       |
+| `SHR`    | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=0,x=0,c=0,r=0`         | No        |
+| `SHRW`   | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=1,x=0,c=0,r=0`         | No        |
+| `SHRNC`  | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=0,x=0,c=1,r=0`         | No        |
+| `SHRWNC` | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=1,x=0,c=1,r=0`         | No        |
+| `ROR`    | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=1,x=0,c=0,r=v`         | No        |
+| `ROLRC`  | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=1,x=0,c=1,r=v`         | No        |
+| `SAR`    | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=0,x=1,c=0,r=0`         | No        |
+| `SARW`   | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=1,x=1,c=0,r=0`         | No        |
+| `SARNC`  | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=0,x=1,c=1,r=0`         | No        |
+| `SARWNC` | `GPR <d>, GPR <v>, GPR <q>`         | `0x0F` | `w=1,x=1,c=1,r=0`         | No        |
+
+### Branches
+
+| Mnemonic | Operands                       | Opcode | Special Payload Encoding  | Canonical |
+|----------|--------------------------------|--------|---------------------------|-----------|
+| `JL<c>`  | `GPR <l>, OFF15 <o>`           | `0x10` | -                         | Yes       |
+| `JLR<c>` | `GPR <l>, GPR <r>`             | `0x11` | -                         | Yes       |
+| `JMP<c>` | `OFF15 <o>`                    | `0x10` | `l=0`                     | No        |
+| `JMPR<c>`| `GPR <r>`                      | `0x11` | `l=0`                     | No        |
+| `JMP`    | `OFF15 <o>`                    | `0x10` | `l=0,c=15`                | No        |
+| `JMPR`   | `GPR <r>`                      | `0x11` | `l=0,c=15`                | No        |
+| `CALL`   | `GPR <l>, OFF16 <o>`           | `0x10` | `c=15`                    | No        |
+| `CALLR`  | `GPR <l>, GPR <r>`             | `0x11` | `c=15`                    | No        |
+| `CALL`   | `OFF16 <o>`                    | `0x10` | `l=31,c=15`               | No        |
+| `CALLR`  | `GPR <r>`                      | `0x11` | `l=31,c=15`               | No        |
+
+### I/O Transfers
+
+| Mnemonic | Operands                         | Opcode | Special Payload Encoding  | Canonical |
+|----------|----------------------------------|--------|---------------------------|-----------|
+| `IN`     | `IOR <d>, ABSIMM8 <p>, BITW <w>` | `0x14` | -                         | Yes       |
+| `OUT`    | `IOR <s>, ABSIMM8 <p>, BITW <w>` | `0x15` | -                         | Yes       |
+
+### Coprocessor Invocations
+
+| Mnemonic   | Operands                       | Opcode    | Special Payload Encoding  | Canonical |
+|------------|--------------------------------|-----------|---------------------------|-----------|
+| `CPI<x>`   | `ABSIMM4 <f>, VPAYLOAD20 <p>`  | `0x20+x`  | -                         | Yes       |
+| `CPI<x>EF` | `ABSIMM6 <f>, VPAYLOAD18 <p>`  | `0x28+x`  | -                         | Yes       |
+| `NCPI<x>`  | `ABSIMM4 <f>, VPAYLOAD20 <p>`  | `0x30+x`  | -                         | Yes       |
+| `NCPI<x>EF`| `ABSIMM6 <f>, VPAYLOAD20 <p>`  | `0x38+x`  | -                         | Yes       |
+
+### Stop/Halt
+
+| Mnemonic | Operands        | Opcode | Special Payload Encoding | Canonical |
+|----------|-----------------|--------|--------------------------|-----------|
+| `HLT`    | -               | `0x40` | -                        | Yes       |
+| `STP`    | -               | `0x41` | -                        | Yes       |

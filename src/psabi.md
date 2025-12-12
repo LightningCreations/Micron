@@ -45,9 +45,9 @@ In Map 0, Registers r1-r15 are callee saved and are not preserved accross prodec
 
 r15 is recommended for use by code patterns that use a register to compute a value for immediate use. The Assembler may make use of this register implicitly to assemble certain psuedo-instructions. 
 
-Map 1 Registers should not be modified by toolchains, except through explicit arrangement with the program. The precise values of Map 1 Registers should not be relied upon.
+Map 1 and 4 Registers should not be modified by toolchains, except through explicit arrangement with the program. The precise values of Map 1 Registers should not be relied upon.
 
-Registers in Map 2 and Maps 4-7 are callee saved and are not preserved accross procedure calls.
+Registers in Map 2 and Maps 8-15 are callee saved and are not preserved accross procedure calls.
 
 r1 and r2 are used to return values up to 8 bytes in size. Registers r1 through r10 are used to pass up to 10 parameters. 
 
