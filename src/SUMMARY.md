@@ -5,7 +5,6 @@
 # ISA Specification
 
 - [Instruction Set](./instruction-set.md)
-- [Floating Point Co-processor Unit](./float-coproc.md)
 
 # Toolchain Documents
 
